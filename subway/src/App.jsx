@@ -1,176 +1,81 @@
 import React, { useState, useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+// Set default Leaflet icon using public folder paths
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: '/marker-icon-2x.png',
+  iconUrl: '/marker-icon.png',
+  shadowUrl: '/marker-shadow.png',
+});
 
 const App = () => {
   const [nodes, setNodes] = useState([]);
-  const [startNode, setStartNode] = useState("");
-  const [endNode, setEndNode] = useState("");
 
   // Fetch the nodes from the JSON file
   useEffect(() => {
     fetch('/data/nodes.json')
       .then(response => response.json())
-      .then(data => setNodes(data.nodes))
+      .then(data => {
+        setNodes(data.nodes);
+      })
       .catch(error => console.error('Error fetching nodes:', error));
   }, []);
 
-  // Function to find the shortest route using BFS
-  const bfsRoute = (startId, endId) => {
-    if (startId === endId) return [startId];
-
-    const graph = new Map();
+  // Generate the polyline path based on the edges
+  const getPolylines = () => {
+    const lines = [];
     nodes.forEach(node => {
-      graph.set(node.id, node.edges);
+      node.edges.forEach(edgeId => {
+        const targetNode = nodes.find(n => n.id === edgeId);
+        if (targetNode) {
+          lines.push([node.position, targetNode.position]);  // Connect the nodes with lines
+        }
+      });
     });
-
-    const queue = [[startId]];
-    const visited = new Set();
-
-    while (queue.length > 0) {
-      const path = queue.shift();
-      const node = path[path.length - 1];
-
-      if (node === endId) {
-        return path;
-      }
-
-      if (!visited.has(node)) {
-        visited.add(node);
-        const neighbors = graph.get(node);
-        neighbors.forEach(neighbor => {
-          if (!visited.has(neighbor)) {
-            queue.push([...path, neighbor]);
-          }
-        });
-      }
-    }
-
-    return null; // No route found
-  };
-
-  const handleNodeClick = (nodeId) => {
-    if (!startNode) {
-      setStartNode(nodeId);
-    } else if (!endNode && nodeId !== startNode) {
-      setEndNode(nodeId);
-    }
-  };
-
-  const findRoute = () => {
-    if (!startNode || !endNode) {
-      alert('Please select both a start and end node.');
-      return;
-    }
-
-    const route = bfsRoute(startNode, endNode);
-    if (route) {
-      const routeNames = route.map(id => nodes.find(node => node.id === id)?.name).join(' -> ');
-      alert(`Route: ${routeNames}`);
-    } else {
-      alert('No route found between the selected nodes.');
-    }
-  };
-
-  const flipNodes = () => {
-    if (startNode && endNode) {
-      const temp = startNode;
-      setStartNode(endNode);
-      setEndNode(temp);
-    }
-  };
-
-  const clearSelections = () => {
-    setStartNode("");
-    setEndNode("");
+    return lines;
   };
 
   return (
-    <div className='bg-subway h-screen flex justify-between items-start'>
-      <div className="relative w-4/5 h-4/5">
-        {/* Render connections between nodes */}
-        <svg className="absolute w-full h-full top-0 left-0 pointer-events-none">
-          {nodes.map((node) =>
-            node.edges.map((edge) => {
-              const targetNode = nodes.find((n) => n.id === edge);
-              if (targetNode) {
-                return (
-                  <line
-                    key={`${node.id}-${edge}`}
-                    x1={`${node.position.x}%`}
-                    y1={`${node.position.y}%`}
-                    x2={`${targetNode.position.x}%`}
-                    y2={`${targetNode.position.y}%`}
-                    stroke="green"
-                    strokeWidth="2"
-                  />
-                );
-              }
-              return null;
-            })
-          )}
-        </svg>
-        
-        {/* Render nodes as buttons */}
-        {nodes.map((node) => (
-          <button
-            key={node.id}
-            onClick={() => handleNodeClick(node.id)}
-            className={`absolute bg-red-500 text-white p-2 rounded-full ${
-              node.id === startNode || node.id === endNode ? 'font-bold bg-green-500' : ''
-            }`}
-            style={{
-              left: `${node.position.x}%`,
-              top: `${node.position.y}%`,
-              transform: 'translate(-50%, -50%)' // Center the buttons
-            }}
-          >
-            {node.name}
-          </button>
-        ))}
+    <div className="h-screen w-full flex">
+      {/* Left section (70% width for map) */}
+      <div className="w-[70%] h-full">
+        <MapContainer
+          center={[40.006, -83.030]}  // Center the map on OSU campus
+          zoom={15}
+          style={{ width: '100%', height: '100%' }}
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+
+          {/* Render preset pins from nodes.json */}
+          {nodes.map((node) => (
+            <Marker key={node.id} position={node.position}>
+              <Popup>{node.name}</Popup>
+            </Marker>
+          ))}
+
+          {/* Render connecting lines based on edges */}
+          {getPolylines().map((line, index) => (
+            <Polyline key={index} positions={line} color="blue" />
+          ))}
+        </MapContainer>
       </div>
 
-      {/* Control Area on the Right */}
-      <div className="flex flex-col items-start justify-start space-y-4 p-8">
-        {/* Display Selections */}
+      {/* Right section (30% width for buttons and text) */}
+      <div className="w-[30%] h-full bg-gray-100 p-8 flex flex-col space-y-4">
         <div className="mb-4">
-          <p className="text-white mb-2">
-            <strong>From:</strong> {startNode ? nodes.find(node => node.id === startNode)?.name : "Select a start node"}
+          <p className="text-black mb-2">
+            <strong>Pins:</strong>
           </p>
-          <p className="text-white">
-            <strong>To:</strong> {endNode ? nodes.find(node => node.id === endNode)?.name : "Select an end node"}
-          </p>
+          {/* List of preset markers */}
+          {nodes.map((node) => (
+            <p key={node.id}>{node.name}: {node.position[0]}, {node.position[1]}</p>
+          ))}
         </div>
-
-        {/* Clear Button */}
-        <button
-          className={`px-4 py-2 rounded-md ${
-            startNode || endNode ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }`}
-          onClick={clearSelections}
-        >
-          Clear
-        </button>
-
-        {/* Flip Button */}
-        <button
-          className={`px-4 py-2 rounded-md ${
-            startNode && endNode ? 'bg-gray-500 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }`}
-          onClick={flipNodes}
-          disabled={!startNode || !endNode}
-        >
-          Flip
-        </button>
-
-        {/* Route Button */}
-        <button
-          className={`px-4 py-2 rounded-md ${
-            startNode && endNode ? 'bg-blue-500 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }`}
-          onClick={findRoute}
-          disabled={!startNode || !endNode}
-        >
-          Route
-        </button>
       </div>
     </div>
   );
