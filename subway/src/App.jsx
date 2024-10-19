@@ -86,24 +86,6 @@ const App = () => {
   return (
     <div className='bg-subway h-screen flex justify-between items-start'>
       <div className="relative w-4/5 h-4/5">
-        {/* Render nodes as buttons */}
-        {nodes.map((node) => (
-          <button
-            key={node.id}
-            onClick={() => handleNodeClick(node.id)}
-            className={`absolute bg-red-500 text-white p-2 rounded-full ${
-              node.id === startNode || node.id === endNode ? 'font-bold bg-green-500' : ''
-            }`}
-            style={{
-              left: `${node.position.x}%`,
-              top: `${node.position.y}%`,
-              transform: 'translate(-50%, -50%)' // Center the buttons
-            }}
-          >
-            {node.name}
-          </button>
-        ))}
-
         {/* Render connections between nodes */}
         <svg className="absolute w-full h-full top-0 left-0 pointer-events-none">
           {nodes.map((node) =>
@@ -126,6 +108,24 @@ const App = () => {
             })
           )}
         </svg>
+        
+        {/* Render nodes as buttons */}
+        {nodes.map((node) => (
+          <button
+            key={node.id}
+            onClick={() => handleNodeClick(node.id)}
+            className={`absolute bg-red-500 text-white p-2 rounded-full ${
+              node.id === startNode || node.id === endNode ? 'font-bold bg-green-500' : ''
+            }`}
+            style={{
+              left: `${node.position.x}%`,
+              top: `${node.position.y}%`,
+              transform: 'translate(-50%, -50%)' // Center the buttons
+            }}
+          >
+            {node.name}
+          </button>
+        ))}
       </div>
 
       {/* Control Area on the Right */}
